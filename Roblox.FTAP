@@ -1,0 +1,254 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local strength = 50 -- от 1 до 1000
+local protect = false
+
+-- ========== GUI ==========
+local parent = (gethui and gethui()) or game:GetService("CoreGui")
+local okParent = pcall(function() return parent.Name end)
+if not okParent then parent = player:WaitForChild("PlayerGui") end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "FtapMenu"
+gui.ResetOnSpawn = false
+gui.Parent = parent
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 230, 0, 185)
+frame.Position = UDim2.new(0.5, -115, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+local function mkButton(text, pos, size, color)
+    local b = Instance.new("TextButton")
+    b.Position = pos
+    b.Size = size
+    b.BackgroundColor3 = color
+    b.Text = text
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+
+local ACTIVE = Color3.fromRGB(0, 120, 200)
+local IDLE = Color3.fromRGB(60, 60, 60)
+
+local tabThrow = mkButton("Бросок", UDim2.new(0.04, 0, 0, 8), UDim2.new(0.44, 0, 0, 28), ACTIVE)
+local tabDef = mkButton("Защита", UDim2.new(0.52, 0, 0, 8), UDim2.new(0.44, 0, 0, 28), IDLE)
+tabThrow.Parent = frame
+tabDef.Parent = frame
+
+-- Страница: Бросок
+local pageThrow = Instance.new("Frame")
+pageThrow.Size = UDim2.new(1, 0, 1, -44)
+pageThrow.Position = UDim2.new(0, 0, 0, 44)
+pageThrow.BackgroundTransparency = 1
+pageThrow.Parent = frame
+
+local lbl = Instance.new("TextLabel")
+lbl.Size = UDim2.new(1, 0, 0, 22)
+lbl.BackgroundTransparency = 1
+lbl.Text = "Сила броска (1-1000)"
+lbl.TextColor3 = Color3.new(1, 1, 1)
+lbl.Font = Enum.Font.GothamBold
+lbl.TextSize = 14
+lbl.Parent = pageThrow
+
+local box = Instance.new("TextBox")
+box.Size = UDim2.new(0.8, 0, 0, 30)
+box.Position = UDim2.new(0.1, 0, 0, 28)
+box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+box.TextColor3 = Color3.new(1, 1, 1)
+box.PlaceholderText = "Сейчас: " .. strength
+box.Text = ""
+box.ClearTextOnFocus = false
+box.Font = Enum.Font.Gotham
+box.TextSize = 14
+box.Parent = pageThrow
+Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+
+local ok = mkButton("OK", UDim2.new(0.1, 0, 0, 68), UDim2.new(0.8, 0, 0, 30), Color3.fromRGB(0, 150, 80))
+ok.Parent = pageThrow
+
+ok.MouseButton1Click:Connect(function()
+    local n = tonumber(box.Text)
+    if n then
+        strength = math.clamp(math.floor(n), 1, 1000)
+        box.Text = ""
+        box.PlaceholderText = "Сейчас: " .. strength
+    else
+        box.Text = ""
+        box.PlaceholderText = "Нужно число!"
+    end
+end)
+
+-- Страница: Защита
+local pageDef = Instance.new("Frame")
+pageDef.Size = pageThrow.Size
+pageDef.Position = pageThrow.Position
+pageDef.BackgroundTransparency = 1
+pageDef.Visible = false
+pageDef.Parent = frame
+
+local dlbl = Instance.new("TextLabel")
+dlbl.Size = UDim2.new(0.9, 0, 0, 40)
+dlbl.Position = UDim2.new(0.05, 0, 0, 0)
+dlbl.BackgroundTransparency = 1
+dlbl.Text = "Сбрасывает хват других игроков на тебе"
+dlbl.TextWrapped = true
+dlbl.TextColor3 = Color3.new(1, 1, 1)
+dlbl.Font = Enum.Font.Gotham
+dlbl.TextSize = 13
+dlbl.Parent = pageDef
+
+local toggle = mkButton("Защита: ВЫКЛ", UDim2.new(0.1, 0, 0, 44), UDim2.new(0.8, 0, 0, 34), Color3.fromRGB(170, 50, 50))
+toggle.Parent = pageDef
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(0.9, 0, 0, 34)
+status.Position = UDim2.new(0.05, 0, 0, 84)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Font = Enum.Font.Gotham
+status.TextSize = 11
+status.TextWrapped = true
+status.Text = "Защита выключена"
+status.Parent = pageDef
+
+toggle.MouseButton1Click:Connect(function()
+    protect = not protect
+    toggle.Text = protect and "Защита: ВКЛ" or "Защита: ВЫКЛ"
+    toggle.BackgroundColor3 = protect and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(170, 50, 50)
+end)
+
+-- Переключение вкладок
+tabThrow.MouseButton1Click:Connect(function()
+    pageThrow.Visible, pageDef.Visible = true, false
+    tabThrow.BackgroundColor3, tabDef.BackgroundColor3 = ACTIVE, IDLE
+end)
+tabDef.MouseButton1Click:Connect(function()
+    pageThrow.Visible, pageDef.Visible = false, true
+    tabThrow.BackgroundColor3, tabDef.BackgroundColor3 = IDLE, ACTIVE
+end)
+
+-- ========== БРОСОК ==========
+local function launch(part)
+    if not part or not part.Parent then return end
+    if player.Character and part:IsDescendantOf(player.Character) then return end
+
+    local vel = workspace.CurrentCamera.CFrame.LookVector * strength
+    local frames = 0
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        frames += 1
+        if part and part.Parent then
+            part.AssemblyLinearVelocity = vel
+        end
+        if frames >= 6 then conn:Disconnect() end
+    end)
+end
+
+local function onGrab(grabParts)
+    local held
+    local alive = true
+
+    task.spawn(function()
+        local grabPart = grabParts:WaitForChild("GrabPart", 3)
+        local weld = grabPart and grabPart:WaitForChild("WeldConstraint", 3)
+        while alive and weld do
+            if weld.Part1 then held = weld.Part1 end
+            task.wait()
+        end
+    end)
+
+    grabParts.AncestryChanged:Connect(function(_, newParent)
+        if not newParent then
+            alive = false
+            launch(held)
+        end
+    end)
+end
+
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "GrabParts" then onGrab(child) end
+end)
+local existing = workspace:FindFirstChild("GrabParts")
+if existing then onGrab(existing) end
+
+-- ========== ЗАЩИТА ==========
+local struggleRemotes = {}
+for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
+    if d:IsA("RemoteEvent") and string.find(string.lower(d.Name), "struggle") then
+        table.insert(struggleRemotes, d)
+    end
+end
+
+local function isGrabbed(char)
+    for _, d in ipairs(char:GetDescendants()) do
+        if d.Name == "PartOwner" and tostring(d.Value) ~= player.Name then
+            return true
+        end
+    end
+    return false
+end
+
+local anchoredByUs = false
+local grabbedSince = nil
+local ignoreUntil = 0
+local lastFire = 0
+
+RunService.Heartbeat:Connect(function()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if not protect then
+        status.Text = "Защита выключена"
+        if anchoredByUs then
+            hrp.Anchored = false
+            anchoredByUs = false
+        end
+        return
+    end
+
+    local now = os.clock()
+    local grabbed = now >= ignoreUntil and isGrabbed(char)
+
+    status.Text = "Struggle: " .. (#struggleRemotes > 0 and ("найден (" .. #struggleRemotes .. ")") or "НЕ найден")
+        .. " | Хват: " .. (grabbed and "ДА" or "нет")
+
+    if grabbed then
+        grabbedSince = grabbedSince or now
+        hrp.Anchored = true
+        anchoredByUs = true
+
+        if now - lastFire > 0.05 then
+            lastFire = now
+            for _, r in ipairs(struggleRemotes) do
+                pcall(function() r:FireServer() end)
+                pcall(function() r:FireServer(hrp) end)
+            end
+        end
+
+        if now - grabbedSince > 3 then
+            hrp.Anchored = false
+            anchoredByUs = false
+            grabbedSince = nil
+            ignoreUntil = now + 0.5
+        end
+    else
+        grabbedSince = nil
+        if anchoredByUs then
+            hrp.Anchored = false
+            anchoredByUs = false
+        end
+    end
+end)
