@@ -183,7 +183,7 @@ end)
 local existing = workspace:FindFirstChild("GrabParts")
 if existing then onGrab(existing) end
 
--- ========== ЗАЩИТА ==========
+-- ========== ЗАЩИТА (без заморозки персонажа) ==========
 local struggleRemotes = {}
 for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
     if d:IsA("RemoteEvent") and string.find(string.lower(d.Name), "struggle") then
@@ -200,9 +200,6 @@ local function isGrabbed(char)
     return false
 end
 
-local anchoredByUs = false
-local grabbedSince = nil
-local ignoreUntil = 0
 local lastFire = 0
 
 RunService.Heartbeat:Connect(function()
@@ -210,45 +207,26 @@ RunService.Heartbeat:Connect(function()
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
+    -- на всякий случай снимаем якорь, если он остался от старой версии
+    if hrp.Anchored and not protect then hrp.Anchored = false end
+
     if not protect then
         status.Text = "Защита выключена"
-        if anchoredByUs then
-            hrp.Anchored = false
-            anchoredByUs = false
-        end
         return
     end
 
-    local now = os.clock()
-    local grabbed = now >= ignoreUntil and isGrabbed(char)
-
+    local grabbed = isGrabbed(char)
     status.Text = "Struggle: " .. (#struggleRemotes > 0 and ("найден (" .. #struggleRemotes .. ")") or "НЕ найден")
         .. " | Хват: " .. (grabbed and "ДА" or "нет")
 
     if grabbed then
-        grabbedSince = grabbedSince or now
-        hrp.Anchored = true
-        anchoredByUs = true
-
-        if now - lastFire > 0.05 then
+        local now = os.clock()
+        if now - lastFire > 0.1 then
             lastFire = now
             for _, r in ipairs(struggleRemotes) do
                 pcall(function() r:FireServer() end)
                 pcall(function() r:FireServer(hrp) end)
             end
-        end
-
-        if now - grabbedSince > 3 then
-            hrp.Anchored = false
-            anchoredByUs = false
-            grabbedSince = nil
-            ignoreUntil = now + 0.5
-        end
-    else
-        grabbedSince = nil
-        if anchoredByUs then
-            hrp.Anchored = false
-            anchoredByUs = false
         end
     end
 end)
